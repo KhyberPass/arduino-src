@@ -13,6 +13,7 @@ public:
   String Get();  
   String HoursGet();
   String MinutesGet();
+  uint8_t getMinute();
   
 private:
   

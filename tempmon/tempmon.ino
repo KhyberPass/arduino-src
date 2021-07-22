@@ -26,8 +26,10 @@ Featureing
 #include "util-dht.h";
 #include "util-adafruitio.h"
 
-// Deep sleep timeout 15 mins
-#define DEEP_SLEEP_TIME_US (15 * 60 * 1e6)
+#define MEASUREMENT_INTERVAL_MIN 15
+#define WAKE_EARLY_MIN 1
+
+#define DEEP_SLEEP_TIME_US ((MEASUREMENT_INTERVAL_MIN - WAKE_EARLY_MIN) * 60 * 1e6)
 
 ESP8266WiFiMulti WiFiMulti;
 utilTime theTime;
@@ -47,7 +49,6 @@ void setup() {
   Serial.println();
   Serial.println("TempMon Starting...");
 
- 
   // Setup wifi
   WiFi.mode(WIFI_STA);
   WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
@@ -83,39 +84,46 @@ void setup() {
     Serial.println("Updating - not");
   }
   
-  // Read the sensor
+  // Setup the sensor
   sensorDht.Setup();
-  currentTemperature = sensorDht.getTemperature();
-  currentHumidity = sensorDht.getHumidity();
-
-  // Check the time, we only send on 15 min intervals
-  // TODO
-  
-  // Send the data
-  if (!isnan(currentTemperature)) {
-    adafruitIo.sendTemperature(currentTemperature);
-  }
-  
-  if (!isnan(currentHumidity)) {
-    adafruitIo.sendHumidity(currentHumidity);
-  }
-
-  // Find the time when we need to wake up again
-  // we want to run every 15 mins
-  // TODO
-
-  
-  // Go to deep sleep
-  if (adafruitIo.getCommandSleep()) {
-    ESP.deepSleep(DEEP_SLEEP_TIME_US);
-  }
 }
 
 void loop() {
-
-  Serial.println("Running loop");
-  
+  // Update the time  
   theTime.Loop();
 
-  delay(5000);
+  // Check the time, we only send on 15 min intervals
+  uint8_t currentMinute;
+  currentMinute = theTime.getMinute();
+  Serial.println(currentMinute);
+  if (currentMinute % MEASUREMENT_INTERVAL_MIN == 0) {
+    // Read the sensors
+    currentTemperature = sensorDht.getTemperature();
+    currentHumidity = sensorDht.getHumidity();
+
+    // Send the data
+    if (!isnan(currentTemperature)) {
+      adafruitIo.sendTemperature(currentTemperature);
+    }
+    
+    if (!isnan(currentHumidity)) {
+      adafruitIo.sendHumidity(currentHumidity);
+    }
+
+    // Find the time when we need to wake up again
+    // we want to run every 15 mins
+    // TODO
+  
+    
+    // Go to deep sleep
+    if (adafruitIo.getCommandSleep()) {
+      ESP.deepSleep(DEEP_SLEEP_TIME_US);
+      // Wait for the sleep to cut in
+      delay(60000);
+    }
+  }
+
+  // Wait for 1 min
+  //ESP.deepSleep(30 * 1e6);
+  delay(60000);
 }

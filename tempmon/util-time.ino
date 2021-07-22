@@ -65,3 +65,7 @@ String utilTime::HoursGet() {
 String utilTime::MinutesGet() {
   return myTime.dateTime("i");
 }
+
+uint8_t utilTime::getMinute() {
+  return myTime.minute();
+}
