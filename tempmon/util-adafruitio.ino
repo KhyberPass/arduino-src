@@ -1,3 +1,4 @@
+#if defined(ENABLE_ADAFRUIT_IO)
 
 #include "AdafruitIO_WiFi.h"
 
@@ -115,3 +116,4 @@ void feedControlCommandMessageHandler(AdafruitIO_Data *data)
   // Signal that we received a command
   adafruitIo.setMessageState(true);
 }
+#endif

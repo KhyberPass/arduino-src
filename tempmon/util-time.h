@@ -14,6 +14,7 @@ public:
   String HoursGet();
   String MinutesGet();
   uint8_t getMinute();
+  uint8_t getSecond();
   
 private:
   

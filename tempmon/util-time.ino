@@ -69,3 +69,7 @@ String utilTime::MinutesGet() {
 uint8_t utilTime::getMinute() {
   return myTime.minute();
 }
+
+uint8_t utilTime::getSecond() {
+  return myTime.second();
+}

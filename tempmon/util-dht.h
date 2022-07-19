@@ -9,6 +9,7 @@ public:
 
   void Setup(void);
   void Loop(void);
+  void Reset(void);
 
   float getTemperature(void);
   float getHumidity(void);

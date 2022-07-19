@@ -7,7 +7,7 @@
 #include <DHT.h>
 #include <DHT_U.h>
 
-#define DHTPIN 5
+#define DHTPIN 2
 #define DHTTYPE DHT22
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
@@ -99,6 +99,12 @@ void utilDht::Loop(void)
     Serial.print(event.relative_humidity);
     Serial.println(F("%"));
   }
+}
+
+void utilDht::Reset(void)
+{
+  pinMode(DHTPIN, OUTPUT);
+  digitalWrite(DHTPIN, LOW);
 }
 
 float utilDht::getTemperature(void)
