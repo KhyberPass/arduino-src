@@ -7,7 +7,7 @@
 #include <DHT.h>
 #include <DHT_U.h>
 
-#define DHTPIN 2
+#define DHTPIN 0
 #define DHTTYPE DHT22
 
 DHT_Unified dht(DHTPIN, DHTTYPE);

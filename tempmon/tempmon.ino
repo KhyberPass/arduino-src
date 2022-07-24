@@ -11,6 +11,7 @@ Featureing
 */
 
 #define ENABLE_ADAFRUIT_IO 1
+//#define STATIC_IP 1
 
 #include <Arduino.h>
 
@@ -42,15 +43,15 @@ ESP8266WiFiMulti WiFiMulti;
 WiFiMulti WiFiMulti;
 #endif
 
-#if 0
+#if defined(STATIC_IP)
 // Set your Static IP address
-IPAddress local_IP(192, 168, 1, 184);
+IPAddress WifiLocalIp(192, 168, 111, 62);
 // Set your Gateway IP address
-IPAddress gateway(192, 168, 1, 1);
+IPAddress WifiGateway(192, 168, 111, 1);
 
-IPAddress subnet(255, 255, 0, 0);
-IPAddress primaryDNS(8, 8, 8, 8);   //optional
-IPAddress secondaryDNS(8, 8, 4, 4); //optional
+IPAddress WifiSubnet(255, 255, 0, 0);
+IPAddress WifiDnsPrimary(192, 168, 111, 1);
+IPAddress WifiDnsSecondary(192, 168, 111, 1);
 #endif
 
 utilTime theTime;
@@ -63,8 +64,10 @@ utilAdafruitIo adafruitIo;
 
 float currentTemperature;
 float currentHumidity;
+unsigned long startTime;
 
 void setup() {
+  startTime = millis();
 
   // Setup serial port
   Serial.begin(115200);
@@ -72,6 +75,7 @@ void setup() {
   while (!Serial) { ; }
   Serial.println();
   Serial.println("TempMon Starting...");
+  Serial.println(startTime);
 
   // Set the hostname
   Serial.print("MAC Address: ");
@@ -87,6 +91,13 @@ void setup() {
 #elif defined(ESP32)  
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
   WiFi.setHostname(hostname);
+#endif
+
+#if defined(STATIC_IP)
+  // Configures static IP address
+  if (!WiFi.config(WifiLocalIp, WifiGateway, WifiSubnet, WifiDnsPrimary, WifiDnsSecondary)) {
+    Serial.println("STA Failed to configure");
+  }
 #endif
 
   // Setup wifi
@@ -112,12 +123,13 @@ void setup() {
   // Setup cloud
   adafruitIo.Setup();
 
+#ifdef ENABLE_UPDATE_TRIGGER
   // Check for updates if flag has been set
   adafruitIo.requestCommandUpdate();
   while (adafruitIo.WaitForMessage()) {
     delay(10);
   }
-  
+
   if (adafruitIo.getCommandUpdate()) {
     Serial.println("Updating - yes");
     httpUpdater.Setup();
@@ -125,6 +137,7 @@ void setup() {
   else {
     Serial.println("Updating - not");
   }
+#endif
 #endif
 
   // Setup the sensor
@@ -159,7 +172,8 @@ void loop() {
     // TODO
   
     
-    Serial.println(" Sleeping");
+    Serial.println("Sleeping");
+    Serial.println(millis() - startTime);
     
     // Put the DTH sensor in the right state before sleep.
     // Otherwise when we wake up a read error happnes.
@@ -175,11 +189,7 @@ void loop() {
 #endif
   }
 
-  // Wait for 1 min
-  //ESP.deepSleep(30 * 1e6);
   // Calculate how long to delay for so we loop every minute
-  Serial.print(currentMinute);
-  Serial.println(" Looping");
   uint8_t currentSecond;
   currentSecond = theTime.getSecond();
   currentSecond = 60 - currentSecond;
