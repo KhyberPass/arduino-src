@@ -7,6 +7,8 @@
 #include <DHT.h>
 #include <DHT_U.h>
 
+//#define DEBUG_ENABLED 1
+
 #define DHTPIN 0
 #define DHTTYPE DHT22
 
@@ -29,6 +31,8 @@ void utilDht::Setup(void)
   // Print temperature sensor details
   sensor_t sensor;
   dht.temperature().getSensor(&sensor);
+
+#ifdef DEBUG_ENABLED
   Serial.println(F("------------------------------------"));
   Serial.println(F("Temperature Sensor"));
   Serial.print  (F("Sensor Type: ")); Serial.println(sensor.name);
@@ -38,9 +42,12 @@ void utilDht::Setup(void)
   Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("°C"));
   Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("°C"));
   Serial.println(F("------------------------------------"));
+#endif
   
   // Print humidity sensor details.
   dht.humidity().getSensor(&sensor);
+
+#ifdef DEBUG_ENABLED
   Serial.println(F("Humidity Sensor"));
   Serial.print  (F("Sensor Type: ")); Serial.println(sensor.name);
   Serial.print  (F("Driver Ver:  ")); Serial.println(sensor.version);
@@ -49,7 +56,8 @@ void utilDht::Setup(void)
   Serial.print  (F("Min Value:   ")); Serial.print(sensor.min_value); Serial.println(F("%"));
   Serial.print  (F("Resolution:  ")); Serial.print(sensor.resolution); Serial.println(F("%"));
   Serial.println(F("------------------------------------"));
-
+#endif
+  
   // Get temperature event and print its value.
   sensors_event_t event;
   dht.temperature().getEvent(&event);
@@ -57,9 +65,11 @@ void utilDht::Setup(void)
     Serial.println(F("Error reading temperature!"));
   }
   else {
+#ifdef DEBUG_ENABLED
     Serial.print(F("Temperature: "));
     Serial.print(event.temperature);
     Serial.println(F("°C"));
+#endif
   }
   // Get humidity event and print its value.
   dht.humidity().getEvent(&event);
@@ -67,9 +77,11 @@ void utilDht::Setup(void)
     Serial.println(F("Error reading humidity!"));
   }
   else {
+#ifdef DEBUG_ENABLED
     Serial.print(F("Humidity: "));
     Serial.print(event.relative_humidity);
     Serial.println(F("%"));
+#endif
   }
   
   // Set delay between sensor readings based on sensor details.

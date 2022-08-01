@@ -15,7 +15,7 @@ void utilTime::Setup(void)
 {
   bool status;
   
-  setDebug(INFO);
+  //setDebug(INFO);
   
   status = waitForSync();
   

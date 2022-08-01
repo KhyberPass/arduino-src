@@ -14,6 +14,7 @@ Featuring
 #define ENABLE_ADAFRUIT_IO 1
 //#define WAIT_TIME_SYNC 1
 //#define STATIC_IP 1
+#define WIFI_FAST_CONNECT 1
 #define DEBUG_LOCAL 1
 
 #ifdef DEBUG_LOCAL
@@ -42,6 +43,7 @@ Featuring
 //#if ENABLE_ADAFRUIT_IO
 #include "util-adafruitio.h"
 //#endif
+#include "util-mqtt.h"
 
 #define MEASUREMENT_INTERVAL_MIN 15
 #define WAKE_EARLY_MIN 1
@@ -82,15 +84,22 @@ utilDht sensorDht;
 utilAdafruitIo adafruitIo;
 #endif
 
+// channel = 6
+//uint8_t wifiBssid[] = {0x5C,0xB1,0x3E,0x5F,0x41,0xFC};
+//uint8_t wifiBssid[] = {0x00,0x14,0x6C,0x62,0xC4,0x3E};
+
 float currentTemperature;
 float currentHumidity;
 unsigned long startTime;
-unsigned long connTime;
+unsigned long stampTime;
 
 void setup() {
   pinMode(2, OUTPUT);
   digitalWrite(2, LOW);
   startTime = millis();
+
+  // For a fast start this will turn on WiFi if it is not already
+  WiFi.mode(WIFI_STA);
 
 #ifdef DEBUG_LOCAL
   // Setup serial port
@@ -118,8 +127,6 @@ void setup() {
 #endif
 */
   // Setup wifi
-#if 0
-  WiFi.mode(WIFI_STA);
 
 #if defined(STATIC_IP)
   // Configures static IP address
@@ -127,6 +134,9 @@ void setup() {
     SERIALPRINTLN("STA Failed to configure");
   }
 #endif
+
+#if 0
+  WiFi.mode(WIFI_STA);
 
   WiFiMulti.addAP(WIFI_SSID, WIFI_PASS);
   //wifiMulti.addAP(WIFI_SSID_ALT1, WIFI_PASS_ALT1);
@@ -138,83 +148,122 @@ void setup() {
     SERIALPRINT('.');
   }
 #else
+
   WiFi.mode(WIFI_STA);
-  
-#if defined(STATIC_IP)
-  // Configures static IP address
-  if (!WiFi.config(WifiLocalIp, WifiGateway, WifiSubnet, WifiDnsPrimary, WifiDnsSecondary)) {
-    SERIALPRINTLN("STA Failed to configure");
-  }
-#endif
 
-  // channel = 6
-  uint8_t bssid[] = {0x5C,0xB1,0x3E,0x5F,0x41,0xFC};
+#ifdef WIFI_FAST_CONNECT
+  WiFi.begin();
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  //WiFi.begin(WIFI_SSID, WIFI_PASS, 6, bssid, true);
-
-  // Wait for connect
-  SERIALPRINT("WiFi connecting .");
+  int count = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    SERIALPRINT('.');
+    delay(100);
+    count++;
+    if (count > 50)
+      break;
+    SERIALPRINT("+");
   }
-#endif
-  connTime = millis();
-
   SERIALPRINTLN("");
+#endif
+
+  // If we did not connect in fast mode then
+  // do the normal conenct
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.println("Connecting slow");
+
+    if (WiFi.SSID() != WIFI_SSID)
+    {
+      // Save the WiFi SSID and password in flash for
+      // fast connect next time
+      WiFi.persistent(true);
+    }
+        
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    //WiFi.begin(WIFI_SSID_ALT1, WIFI_PASS_ALT1);
+    //WiFi.begin(WIFI_SSID_ALT1, WIFI_PASS_ALT1, 11, wifiBssid);
+  
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
+    Serial.println("");
+  }
+  
+#endif
+  stampTime = millis();
+
   SERIALPRINT("WiFi connected ");
-  SERIALPRINTLN(connTime - startTime);
+  SERIALPRINTLN(stampTime - startTime);
   SERIALPRINT("IP address: ");
   SERIALPRINTLN(WiFi.localIP());
 
   // Get NTP time
   theTime.Setup();
-
+  SERIALPRINT("Time setup ");
+  SERIALPRINTLN(millis() - startTime);
+  
 #if ENABLE_ADAFRUIT_IO
   // Setup cloud
   adafruitIo.Setup();
-
-#ifdef UPDATE_TRIGGER_ENABLE
-  // Check for updates if flag has been set
-  adafruitIo.requestCommandUpdate();
-  while (adafruitIo.WaitForMessage()) {
-    delay(10);
-  }
-
-  if (adafruitIo.getCommandUpdate()) {
-    SERIALPRINTLN("Updating - yes");
-    httpUpdater.Setup();
-  }
-  else {
-    SERIALPRINTLN("Updating - not");
-  }
-#endif
+  SERIALPRINT("IO setup ");
+  SERIALPRINTLN(millis() - startTime);
 #endif
 
   // Setup the sensor
   sensorDht.Setup();
 
   digitalWrite(2, HIGH);
-  SERIALPRINT("TS ");
+  
+  SERIALPRINT("Setup Time ");
   SERIALPRINTLN(millis() - startTime);
 }
 
 void loop() {
   // Update the time  
   theTime.Loop();
+  SERIALPRINT("Time loop ");
+  SERIALPRINTLN(millis() - startTime);
 
+  // Check the time. Sometimes we wake from sleep a bit
+  // early. If we are close then just delay, otherwise
+  // continue and we will go to sleep a bit more.
+  uint8_t currentMinute;
+  currentMinute = theTime.getMinute();
+  
+  // If we are within 1 min from the wake interval then 
+  // just delay a bit
+  if ((currentMinute % MEASUREMENT_INTERVAL_MIN) == (MEASUREMENT_INTERVAL_MIN - 1))
+  {
+    SERIALPRINT("Waiting ");
+    SERIALPRINTLN(theTime.getSecond());
+    do
+    {
+      delay(100);
+      currentMinute = theTime.getMinute();
+    }
+    while (currentMinute % MEASUREMENT_INTERVAL_MIN != 0);
+  }
+
+#ifdef WAIT_TIME_SYNC
   // Check the time, we only send on 15 min intervals
   uint8_t currentMinute;
   currentMinute = theTime.getMinute();
-
-#ifdef WAIT_TIME_SYNC
   if (currentMinute % MEASUREMENT_INTERVAL_MIN == 0)
 #endif
   {
     // Read the sensors
     currentTemperature = sensorDht.getTemperature();
+    SERIALPRINT(F("Temperature: "));
+    SERIALPRINT(currentTemperature);
+    SERIALPRINTLN(F("°C"));
+    
     currentHumidity = sensorDht.getHumidity();
+    SERIALPRINT(F("Humidity: "));
+    SERIALPRINT(currentHumidity);
+    SERIALPRINTLN(F("%"));
+
+  SERIALPRINT("Sensor read ");
+  SERIALPRINTLN(millis() - startTime);
 
 #if ENABLE_ADAFRUIT_IO
     // Send the data
@@ -232,7 +281,7 @@ void loop() {
     SERIALPRINTLN(millis() - startTime);
 
     // Put the DTH sensor in the right state before sleep.
-    // Otherwise when we wake up a read error happnes.
+    // Otherwise when we wake up a read error might happen.
     sensorDht.Reset();
 
     // Find the time when we need to wake up again
@@ -252,7 +301,7 @@ void loop() {
     
     digitalWrite(2, LOW);
     // Go to deep sleep
-    ESP.deepSleep((((nextFifteenMinute - currentMinute) * 60) + (60 + 1 - currentSecond)) * 1e6);
+    ESP.deepSleep((((nextFifteenMinute - currentMinute) * 60) + (60 - currentSecond)) * 1e6);
     //ESP.deepSleep(10 * 1e6);
       
     // Wait for the sleep to cut in
