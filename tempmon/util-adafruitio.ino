@@ -1,4 +1,4 @@
-#if defined(ENABLE_ADAFRUIT_IO)
+#ifdef ADAFRUIT_IO_ENABLE
 
 #include "AdafruitIO_WiFi.h"
 

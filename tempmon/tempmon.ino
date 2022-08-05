@@ -11,7 +11,8 @@ Featuring
 */
 
 #define DEEP_SLEEP_ENABLE 1
-#define ENABLE_ADAFRUIT_IO 1
+//#define ADAFRUIT_IO_ENABLE 1
+#define MQTT_ENABLE 1
 //#define WAIT_TIME_SYNC 1
 //#define STATIC_IP 1
 #define WIFI_FAST_CONNECT 1
@@ -40,9 +41,7 @@ Featuring
 #include "util-time.h"
 #include "util-httpupdate.h"
 #include "util-dht.h"
-//#if ENABLE_ADAFRUIT_IO
 #include "util-adafruitio.h"
-//#endif
 #include "util-mqtt.h"
 
 #define MEASUREMENT_INTERVAL_MIN 15
@@ -55,7 +54,7 @@ ESP8266WiFiMulti WiFiMulti;
 WiFiMulti WiFiMulti;
 #endif
 
-#if defined(STATIC_IP)
+#ifdef STATIC_IP
 // Set your Static IP address
 IPAddress WifiLocalIp(192, 168, 111, 62);
 // Set your Gateway IP address
@@ -65,7 +64,7 @@ IPAddress WifiSubnet(255, 255, 255, 0);
 IPAddress WifiDnsPrimary(192, 168, 111, 1);
 IPAddress WifiDnsSecondary(192, 168, 111, 1);
 #endif
-#if defined(STATIC_IP_WORK)
+#ifdef STATIC_IP_WORK
 // Set your Static IP address
 IPAddress WifiLocalIp(192, 168, 0, 220);
 // Set your Gateway IP address
@@ -80,8 +79,12 @@ utilTime theTime;
 utilHttpUpdate httpUpdater;
 utilDht sensorDht;
 
-#if defined(ENABLE_ADAFRUIT_IO)
+#ifdef ADAFRUIT_IO_ENABLE
 utilAdafruitIo adafruitIo;
+#endif
+
+#ifdef MQTT_ENABLE
+utilMqtt mqttClient;
 #endif
 
 // channel = 6
@@ -92,11 +95,27 @@ float currentTemperature;
 float currentHumidity;
 unsigned long startTime;
 unsigned long stampTime;
+unsigned long diffTime;
+char printbuffer[64];
+
+void progressTimePrint(char* message)
+{
+  diffTime = millis() - stampTime;
+  stampTime = millis();
+  sprintf(printbuffer, "%s %d %d", message, stampTime, diffTime);
+  SERIALPRINTLN(printbuffer);
+}
+
 
 void setup() {
   pinMode(2, OUTPUT);
   digitalWrite(2, LOW);
+  pinMode(0, OUTPUT);
+  digitalWrite(0, LOW);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, HIGH);
   startTime = millis();
+  stampTime = startTime;
 
   // For a fast start this will turn on WiFi if it is not already
   WiFi.mode(WIFI_STA);
@@ -128,7 +147,7 @@ void setup() {
 */
   // Setup wifi
 
-#if defined(STATIC_IP)
+#ifdef STATIC_IP
   // Configures static IP address
   if (!WiFi.config(WifiLocalIp, WifiGateway, WifiSubnet, WifiDnsPrimary, WifiDnsSecondary)) {
     SERIALPRINTLN("STA Failed to configure");
@@ -156,9 +175,9 @@ void setup() {
 
   int count = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    delay(100);
+    delay(20);
     count++;
-    if (count > 50)
+    if (count > 400)
       break;
     SERIALPRINT("+");
   }
@@ -199,30 +218,30 @@ void setup() {
 
   // Get NTP time
   theTime.Setup();
-  SERIALPRINT("Time setup ");
-  SERIALPRINTLN(millis() - startTime);
+  progressTimePrint("Time setup");
   
-#if ENABLE_ADAFRUIT_IO
+#ifdef ADAFRUIT_IO_ENABLE
   // Setup cloud
   adafruitIo.Setup();
-  SERIALPRINT("IO setup ");
-  SERIALPRINTLN(millis() - startTime);
 #endif
+
+#ifdef MQTT_ENABLE
+  mqttClient.Setup();
+#endif
+
+  progressTimePrint("IO setup");
 
   // Setup the sensor
   sensorDht.Setup();
 
   digitalWrite(2, HIGH);
-  
-  SERIALPRINT("Setup Time ");
-  SERIALPRINTLN(millis() - startTime);
+  progressTimePrint("Sensor setup");
 }
 
 void loop() {
   // Update the time  
   theTime.Loop();
-  SERIALPRINT("Time loop ");
-  SERIALPRINTLN(millis() - startTime);
+  progressTimePrint("Time loop");
 
   // Check the time. Sometimes we wake from sleep a bit
   // early. If we are close then just delay, otherwise
@@ -262,10 +281,9 @@ void loop() {
     SERIALPRINT(currentHumidity);
     SERIALPRINTLN(F("%"));
 
-  SERIALPRINT("Sensor read ");
-  SERIALPRINTLN(millis() - startTime);
+    progressTimePrint("Sensor read");
 
-#if ENABLE_ADAFRUIT_IO
+#ifdef ADAFRUIT_IO_ENABLE
     // Send the data
     if (!isnan(currentTemperature)) {
       adafruitIo.sendTemperature(currentTemperature);
@@ -276,9 +294,24 @@ void loop() {
     }
 #endif
 
+#ifdef MQTT_ENABLE
+    mqttClient.Connect();
+    
+    // Send the data
+    if (!isnan(currentTemperature)) {
+      mqttClient.Publish(currentTemperature);
+    }
+/*
+    if (!isnan(currentHumidity)) {
+      mqttClient.Publish(currentHumidity);
+    }
+*/
+#endif
+
+    progressTimePrint("IO loop");
+
 #ifdef DEEP_SLEEP_ENABLE
-    SERIALPRINT("Sleeping ");
-    SERIALPRINTLN(millis() - startTime);
+    progressTimePrint("Sleeping");
 
     // Put the DTH sensor in the right state before sleep.
     // Otherwise when we wake up a read error might happen.
