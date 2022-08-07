@@ -1,6 +1,8 @@
 #ifndef _UTIL_ADAFRUITIO_H_
 #define _UTIL_ADAFRUITIO_H_
 
+#ifdef ADAFRUIT_IO_ENABLE
+
 #include "AdafruitIO_WiFi.h"
 
 class utilAdafruitIo
@@ -28,5 +30,6 @@ private:
   bool messageReceived;
 
 };
+#endif
 
 #endif // _UTIL_ADAFRUITIO_H_

@@ -128,7 +128,7 @@ void setup() {
   Serial.println();
   Serial.println("TempMon Starting...");
 #endif
-/*
+
   // Set the hostname
   SERIALPRINT("MAC Address: ");
   uint8_t mac[6];
@@ -144,7 +144,7 @@ void setup() {
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
   WiFi.setHostname(hostname);
 #endif
-*/
+
   // Setup wifi
 
 #ifdef STATIC_IP
@@ -173,6 +173,10 @@ void setup() {
 #ifdef WIFI_FAST_CONNECT
   WiFi.begin();
 
+  if (WiFi.waitForConnectResult() == WL_CONNECTED) {
+    
+  }
+/*
   int count = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(20);
@@ -182,6 +186,7 @@ void setup() {
     SERIALPRINT("+");
   }
   SERIALPRINTLN("");
+*/
 #endif
 
   // If we did not connect in fast mode then
@@ -236,6 +241,8 @@ void setup() {
 
   digitalWrite(2, HIGH);
   progressTimePrint("Sensor setup");
+
+  httpUpdater.Setup();
 }
 
 void loop() {

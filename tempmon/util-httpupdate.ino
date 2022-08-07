@@ -1,12 +1,13 @@
 
 // For HTTP Update
 #if defined(ESP8266)
+#include <ESP8266WiFi.h>
 #include <ESP8266httpUpdate.h>
-ESP8266HTTPUpdate* httpUpdatePtr = &ESPhttpUpdate;
-
+#define httpUpdate ESPhttpUpdate
 #elif defined(ESP32)
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <HTTPUpdate.h>
-//HTTPUpdate* httpUpdatePtr = &httpUpdate;
 #endif
 
 utilHttpUpdate::utilHttpUpdate()
@@ -19,17 +20,11 @@ utilHttpUpdate::~utilHttpUpdate()
 void utilHttpUpdate::Setup(void)
 {
   // Look for a update
-#if defined(ESP8266)
   WiFiClient client;
-#elif defined(ESP32)
-//  HTTPClient client;
-  WiFiClient client;
-#endif
 
-#if 0
   httpUpdate.setLedPin(LED_BUILTIN, LOW);
   
-  t_httpUpdate_return ret = httpUpdate.update(client, "http://192.168.111.100/tempmon.bin");
+  t_httpUpdate_return ret = httpUpdate.update(client, "http://192.168.111.100/espimage.bin");
   // Or:
   //t_httpUpdate_return ret = ESPhttpUpdater.update(client, "server", 80, "file.bin");
 
@@ -46,5 +41,4 @@ void utilHttpUpdate::Setup(void)
       Serial.println("HTTP_UPDATE_OK");
       break;
   }
-#endif
 }
