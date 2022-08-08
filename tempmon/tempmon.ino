@@ -91,6 +91,7 @@ utilMqtt mqttClient;
 //uint8_t wifiBssid[] = {0x5C,0xB1,0x3E,0x5F,0x41,0xFC};
 //uint8_t wifiBssid[] = {0x00,0x14,0x6C,0x62,0xC4,0x3E};
 
+int configProcessUpdate;
 float currentTemperature;
 float currentHumidity;
 unsigned long startTime;
@@ -130,6 +131,7 @@ void setup() {
 #endif
 
   // Set the hostname
+  // kitchenroof = 80:7D:3A:11:A0:C9
   SERIALPRINT("MAC Address: ");
   uint8_t mac[6];
   WiFi.macAddress(mac);
@@ -172,21 +174,7 @@ void setup() {
 
 #ifdef WIFI_FAST_CONNECT
   WiFi.begin();
-
-  if (WiFi.waitForConnectResult() == WL_CONNECTED) {
-    
-  }
-/*
-  int count = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(20);
-    count++;
-    if (count > 400)
-      break;
-    SERIALPRINT("+");
-  }
-  SERIALPRINTLN("");
-*/
+  WiFi.waitForConnectResult();
 #endif
 
   // If we did not connect in fast mode then
@@ -221,34 +209,52 @@ void setup() {
   SERIALPRINT("IP address: ");
   SERIALPRINTLN(WiFi.localIP());
 
-  // Get NTP time
-  theTime.Setup();
-  progressTimePrint("Time setup");
-  
 #ifdef ADAFRUIT_IO_ENABLE
   // Setup cloud
   adafruitIo.Setup();
 #endif
 
 #ifdef MQTT_ENABLE
+  // Setup mqtt now and subscribe for updates
+  // so any pubs will arrive will we are setting
+  // up the time as this take about 700ms
   mqttClient.Setup();
+  mqttClient.Connect();
+  mqttClient.ConfigSubscribe();
 #endif
 
   progressTimePrint("IO setup");
 
+  // Get NTP time
+  theTime.Setup();
+  progressTimePrint("Time setup");
+
   // Setup the sensor
   sensorDht.Setup();
-
-  digitalWrite(2, HIGH);
   progressTimePrint("Sensor setup");
 
-  httpUpdater.Setup();
+#ifdef MQTT_ENABLE
+  mqttClient.Loop();
+  mqttClient.Loop();
+  int config;
+  config = mqttClient.ConfigCheck();
+  
+  if (config) // == "update"
+    configProcessUpdate = true;
+    
+#endif
+  
+  digitalWrite(2, HIGH);
+  progressTimePrint("Setup done");
 }
 
 void loop() {
   // Update the time  
   theTime.Loop();
   progressTimePrint("Time loop");
+
+  if (configProcessUpdate)
+    httpUpdater.Setup();
 
   // Check the time. Sometimes we wake from sleep a bit
   // early. If we are close then just delay, otherwise
@@ -302,8 +308,6 @@ void loop() {
 #endif
 
 #ifdef MQTT_ENABLE
-    mqttClient.Connect();
-    
     // Send the data
     if (!isnan(currentTemperature)) {
       mqttClient.Publish(currentTemperature);

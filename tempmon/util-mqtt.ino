@@ -11,6 +11,8 @@ Uses https://github.com/knolleary/pubsubclient
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+int configUpdate;
+
 utilMqtt::utilMqtt()
 {
 }
@@ -18,11 +20,27 @@ utilMqtt::~utilMqtt()
 {
 }
 
+void callback(char* topic, byte* payload, unsigned int length)
+{
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+  if (strcmp((char*)payload, "update"))
+    configUpdate = true;
+}
+
 void utilMqtt::Setup(void)
 {
-  client.setServer("192.168.111.100", 1883);
-  //client.setServer("192.168.0.203", 1883);
-  //client.setCallback(callback);
+  configUpdate = false;
+  
+  //client.setServer("192.168.111.100", 1883);
+  client.setServer("192.168.0.203", 1883);
+  client.setCallback(callback);
 }
 
 void utilMqtt::Loop(void)
@@ -54,10 +72,28 @@ void utilMqtt::Publish(float value)
     char temp[5];
     dtostrf(value, 4, 1, temp);
 
-    client.publish("sensor/temp/kitchenroof", temp);
+    client.publish("sensor/kitchenroof/temperature", temp);
 
     // Need to do a disconenct so the send is flushed
     // before we sleep
     client.disconnect();
   }
+}
+
+// Subscribe to config messages that we may get
+// at boot time to change the execution.
+// Like run the updater server
+void utilMqtt::ConfigSubscribe()
+{
+  if (client.connected())
+  {
+    client.subscribe("sensor/kitchenroof/config");
+  }
+}
+
+// Read if there have been an messages received that
+// may change the config
+int utilMqtt::ConfigCheck()
+{
+  return configUpdate;
 }

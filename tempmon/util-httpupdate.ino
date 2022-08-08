@@ -24,7 +24,8 @@ void utilHttpUpdate::Setup(void)
 
   httpUpdate.setLedPin(LED_BUILTIN, LOW);
   
-  t_httpUpdate_return ret = httpUpdate.update(client, "http://192.168.111.100/espimage.bin");
+  //t_httpUpdate_return ret = httpUpdate.update(client, "http://192.168.111.100/espimage.bin");
+  t_httpUpdate_return ret = httpUpdate.update(client, "http://192.168.0.203/espimage.bin");
   // Or:
   //t_httpUpdate_return ret = ESPhttpUpdater.update(client, "server", 80, "file.bin");
 
