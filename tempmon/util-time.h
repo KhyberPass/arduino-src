@@ -9,6 +9,7 @@ public:
 
   void Setup(void);
   void Loop(void);
+  unsigned long Now(void);
   bool HasChanged();
   String Get();  
   String HoursGet();

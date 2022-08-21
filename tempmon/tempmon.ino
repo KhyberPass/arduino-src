@@ -37,6 +37,8 @@ Featuring
 #include <WiFiMulti.h>
 #endif
 
+#include <ArduinoJson.h>
+
 #include "tempmon-cred.h"
 #include "util-time.h"
 #include "util-httpupdate.h"
@@ -98,6 +100,9 @@ unsigned long startTime;
 unsigned long stampTime;
 unsigned long diffTime;
 char printbuffer[64];
+
+char dataJsonStr[256];
+StaticJsonDocument<64> dataJson;
 
 void progressTimePrint(char* message)
 {
@@ -261,7 +266,7 @@ void loop() {
   // continue and we will go to sleep a bit more.
   uint8_t currentMinute;
   currentMinute = theTime.getMinute();
-  
+
   // If we are within 1 min from the wake interval then 
   // just delay a bit
   if ((currentMinute % MEASUREMENT_INTERVAL_MIN) == (MEASUREMENT_INTERVAL_MIN - 1))
@@ -309,14 +314,13 @@ void loop() {
 
 #ifdef MQTT_ENABLE
     // Send the data
-    if (!isnan(currentTemperature)) {
-      mqttClient.Publish(currentTemperature);
-    }
-/*
-    if (!isnan(currentHumidity)) {
-      mqttClient.Publish(currentHumidity);
-    }
-*/
+    dataJson["time"] = theTime.Now();
+    dataJson["temperature"] = currentTemperature;
+    dataJson["humidity"] = currentHumidity;
+    dataJson["debug"] = millis() - startTime;
+
+    serializeJson(dataJson, dataJsonStr);
+    mqttClient.Publish(dataJsonStr);
 #endif
 
     progressTimePrint("IO loop");
@@ -346,7 +350,7 @@ void loop() {
     digitalWrite(2, LOW);
     // Go to deep sleep
     ESP.deepSleep((((nextFifteenMinute - currentMinute) * 60) + (60 - currentSecond)) * 1e6);
-    //ESP.deepSleep(10 * 1e6);
+    //ESP.deepSleep(20 * 1e6);
       
     // Wait for the sleep to cut in
     delay(60000);

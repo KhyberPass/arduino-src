@@ -45,6 +45,11 @@ void utilTime::Loop(void)
   }
 }
 
+unsigned long utilTime::Now()
+{
+  return myTime.now();
+}
+
 bool utilTime::HasChanged() {
   if (timeChanged) 
   {

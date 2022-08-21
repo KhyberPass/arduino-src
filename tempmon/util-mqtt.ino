@@ -38,8 +38,8 @@ void utilMqtt::Setup(void)
 {
   configUpdate = false;
   
-  //client.setServer("192.168.111.100", 1883);
-  client.setServer("192.168.0.203", 1883);
+  client.setServer("192.168.111.100", 1883);
+  //client.setServer("192.168.0.203", 1883);
   client.setCallback(callback);
 }
 
@@ -67,12 +67,17 @@ void utilMqtt::Connect(void)
 
 void utilMqtt::Publish(float value)
 {
+  char temp[5];
+  dtostrf(value, 4, 1, temp);
+
+  Publish(temp);
+}
+
+void utilMqtt::Publish(char* value)
+{
   if (client.connected())
   {
-    char temp[5];
-    dtostrf(value, 4, 1, temp);
-
-    client.publish("sensor/kitchenroof/temperature", temp);
+    client.publish("sensor/kitchenroof/status", value);
 
     // Need to do a disconenct so the send is flushed
     // before we sleep

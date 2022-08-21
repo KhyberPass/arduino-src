@@ -12,6 +12,7 @@ public:
 
   void Connect(void);
   void Publish(float);
+  void Publish(char*);
 
   void ConfigSubscribe(void);
   int ConfigCheck(void);
