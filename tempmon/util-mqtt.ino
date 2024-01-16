@@ -77,11 +77,16 @@ void utilMqtt::Publish(char* value)
 {
   if (client.connected())
   {
-    client.publish("sensor/kitchenroof/status", value);
+    Serial.println("Publish");
+    client.publish("sensor/kitchenroom/status", value);
 
     // Need to do a disconenct so the send is flushed
     // before we sleep
     client.disconnect();
+  }
+  else
+  {
+    Serial.println("Not connected");
   }
 }
 

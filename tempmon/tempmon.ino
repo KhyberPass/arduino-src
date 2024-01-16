@@ -10,10 +10,10 @@ Featuring
 
 */
 
-#define DEEP_SLEEP_ENABLE 1
+//#define DEEP_SLEEP_ENABLE 1
 //#define ADAFRUIT_IO_ENABLE 1
 #define MQTT_ENABLE 1
-//#define WAIT_TIME_SYNC 1
+#define WAIT_TIME_SYNC 1
 //#define STATIC_IP 1
 #define WIFI_FAST_CONNECT 1
 #define DEBUG_LOCAL 1
@@ -101,6 +101,8 @@ unsigned long stampTime;
 unsigned long diffTime;
 char printbuffer[64];
 
+String mqttTopic;
+
 char dataJsonStr[256];
 StaticJsonDocument<64> dataJson;
 
@@ -137,6 +139,7 @@ void setup() {
 
   // Set the hostname
   // kitchenroof = 80:7D:3A:11:A0:C9
+  // kitchenroom = 84:F3:EB:0A:98:8A
   SERIALPRINT("MAC Address: ");
   uint8_t mac[6];
   WiFi.macAddress(mac);
@@ -144,6 +147,15 @@ void setup() {
 
   char hostname[20];
   sprintf(hostname, "esp-%02x%02x%02x\0", mac[3], mac[4], mac[5]);
+
+  if (mac[3] == 0x0A && mac[4] == 0x98 && mac[5] == 0x8A)
+  {
+    mqttTopic = "sensor/kitchenroom/status";
+  }
+  else if (mac[3] == 0x11 && mac[4] == 0xA0 && mac[5] == 0xC9)
+  {
+    mqttTopic = "sensor/kitchenroof/status";
+  }
 
 #if defined(ESP8266)
   WiFi.hostname(hostname);
@@ -194,18 +206,18 @@ void setup() {
       // fast connect next time
       WiFi.persistent(true);
     }
-        
+
     WiFi.begin(WIFI_SSID, WIFI_PASS);
     //WiFi.begin(WIFI_SSID_ALT1, WIFI_PASS_ALT1);
     //WiFi.begin(WIFI_SSID_ALT1, WIFI_PASS_ALT1, 11, wifiBssid);
-  
+
     while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
     }
     Serial.println("");
   }
-  
+
 #endif
   stampTime = millis();
 
@@ -282,8 +294,9 @@ void loop() {
   }
 
 #ifdef WAIT_TIME_SYNC
+  mqttClient.Connect();
+
   // Check the time, we only send on 15 min intervals
-  uint8_t currentMinute;
   currentMinute = theTime.getMinute();
   if (currentMinute % MEASUREMENT_INTERVAL_MIN == 0)
 #endif
@@ -356,6 +369,7 @@ void loop() {
     delay(60000);
 #else
     sensorDht.Loop();
+    mqttClient.Loop();
 #endif
   }
 
