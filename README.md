@@ -19,3 +19,13 @@ A template for a basic Wifi setup and connect
 * Set hostname
 * Optional fixed static IP
 * Optional multi SSID config
+
+## Current Monitor (currentmon-ina219)
+A basic current monitor using an INA219 mondule e.g. https://www.adafruit.com/product/904
+Either prints to the serial port or if a TFT display is connected will display values there.
+
+### Features
+* For ESP32
+* Designed for a INA219 connected to the I2C bus
+* Prints values to serial port every 2s, uses Adafruit library (Adafruit_INA219)
+* Prints values to a TFT display (optional), uses TFT_eSPI library (https://github.com/Bodmer/TFT_eSPI)
